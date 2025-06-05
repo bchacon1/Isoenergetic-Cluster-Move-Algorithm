@@ -107,7 +107,8 @@ class Solver(object):
                           send_background: bool = False,
                           verbose: bool = False,
                           get_part_fun: bool = False,
-                          beta0: bool = False) -> pd.DataFrame:
+                          beta0: bool = False,
+                          record_trajectory: bool = False) -> pd.DataFrame:
         '''This function runs a full simulated annealing importance sampling with a focus on parallel tempering.  This is the main user interface with PySA.  If return_dataframe=True, then the output will be a pandas DataFrame.  This is an object that contains a lot of data indexed by string labels, to access any of the below, you can take the output object and look for the below label index, e.g. output['temps']
                 'states' = a num_reads X num_replicas array of output states 
                             each of which is length num_vars
@@ -134,6 +135,9 @@ class Solver(object):
                 'log_Zf' = optional and only occurs if get_part_fun = True
                             a num_reads array containing estimates of the log
                             of the partition function for each read
+                'energy_trajectory' = optional and only occurs if
+                            record_trajectory=True. A num_reads X n_sweeps X
+                            num_replicas array storing the energy at each sweep
         '''
 
         # Send process in background
@@ -329,7 +333,7 @@ class Solver(object):
                 return simulation(self._module.update_spin,
                                   pysa.simulation.random_sweep, couplings,
                                   local_fields, *w, beta_idx, betas, num_sweeps,
-                                  get_part_fun, use_pt), t_end - t_ini
+                                  get_part_fun, use_pt, record_trajectory), t_end - t_ini
 
         elif update_strategy == 'sequential':
 
@@ -349,7 +353,7 @@ class Solver(object):
                 return simulation(self._module.update_spin,
                                   pysa.simulation.sequential_sweep, couplings,
                                   local_fields, *w, beta_idx, betas, num_sweeps,
-                                  get_part_fun, use_pt), t_end - t_ini
+                                  get_part_fun, use_pt, record_trajectory), t_end - t_ini
 
         else:
             raise ValueError(
@@ -361,7 +365,7 @@ class Solver(object):
             t_ini = time()
 
             # Simulate
-            ((out_states, out_energies, out_beta_idx, out_log_omegas),
+            ((out_states, out_energies, out_beta_idx, out_log_omegas, trajectory),
              (best_state, best_energy, best_sweeps,
               ns)), init_time = _simulate_core()
 
@@ -404,7 +408,8 @@ class Solver(object):
                     'init_time (us)': int(init_time * 1e6),
                     'runtime (us)': int((t_end - t_ini - init_time) * 1e6),
                     'problem_type': self.problem_type,
-                    'float_type': self.float_type
+                    'float_type': self.float_type,
+                    'energy_trajectory': trajectory
                 }
             else:
                 return {
@@ -418,7 +423,8 @@ class Solver(object):
                     'init_time (us)': int(init_time * 1e6),
                     'runtime (us)': int((t_end - t_ini - init_time) * 1e6),
                     'problem_type': self.problem_type,
-                    'float_type': self.float_type
+                    'float_type': self.float_type,
+                    'energy_trajectory': trajectory
                 }
 
         # Run simulations
