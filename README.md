@@ -43,6 +43,24 @@ or by using `conda`:
 conda env create -f envinronment.yml
 ```
 
+## Recording Energy Trajectories
+
+Set `record_trajectory=True` when calling `Solver.metropolis_update` to store
+the energy of each replica after every sweep.
+
+```python
+from pysa.sa import Solver
+import matplotlib.pyplot as plt
+
+solver = Solver(problem, problem_type='ising')
+res = solver.metropolis_update(num_sweeps=100, record_trajectory=True)
+trajectory = res['energy_trajectory'][0]
+plt.plot(trajectory.min(axis=1))
+plt.xlabel('Sweep')
+plt.ylabel('Best energy')
+plt.show()
+```
+
 ## NASA Open Source Agreement and Contributions
 
 See [NOSA](https://github.com/nasa/pysa/tree/main/docs/nasa-cla/).

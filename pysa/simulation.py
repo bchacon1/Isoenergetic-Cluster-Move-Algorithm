@@ -131,7 +131,8 @@ def simulation_parallel(update_spin: UpdateSpinFunction,
                         betas: List[float],
                         n_sweeps: int,
                         get_part_fun: bool = False,
-                        use_pt: bool = True) -> Tuple[State, float, int, int]:
+                        use_pt: bool = True,
+                        record_trajectory: bool = False) -> Tuple[State, float, int, int, Matrix]:
     """
   Apply simulation.
   """
@@ -145,6 +146,7 @@ def simulation_parallel(update_spin: UpdateSpinFunction,
     _best_sweeps = np.zeros(n_replicas, dtype=np.int32)
     betas_sorted = np.empty_like(betas)
     log_omegas = np.zeros(n_sweeps)
+    traj = np.zeros((n_sweeps, n_replicas), dtype=energies.dtype) if record_trajectory else np.empty((0, 0), dtype=energies.dtype)
 
     # For each run ...
     for s in range(n_sweeps):
@@ -169,6 +171,9 @@ def simulation_parallel(update_spin: UpdateSpinFunction,
         # Calculate the weights for the partition function
         if get_part_fun:
             log_omegas[s] = get_log_omega(betas, beta_idx, energies)
+        if record_trajectory:
+            for k in range(n_replicas):
+                traj[s, k] = energies[k]
 
     # Get lowest energy
     best_pos = np.argmin(_best_energy)
@@ -177,8 +182,8 @@ def simulation_parallel(update_spin: UpdateSpinFunction,
     best_sweeps = _best_sweeps[best_pos]
 
     # Return states and energies
-    return ((states, energies, beta_idx, log_omegas), (best_state, best_energy,
-                                                       best_sweeps, s + 1))
+    return ((states, energies, beta_idx, log_omegas, traj),
+            (best_state, best_energy, best_sweeps, s + 1))
 
 
 @numba.njit(fastmath=True, nogil=True, parallel=False)
@@ -192,7 +197,8 @@ def simulation_sequential(update_spin: UpdateSpinFunction,
                           betas: List[float],
                           n_sweeps: int,
                           get_part_fun: bool = False,
-                          use_pt: bool = True) -> Tuple[State, float, int, int]:
+                          use_pt: bool = True,
+                          record_trajectory: bool = False) -> Tuple[State, float, int, int, Matrix]:
     """
   Apply simulation.
   """
@@ -206,6 +212,7 @@ def simulation_sequential(update_spin: UpdateSpinFunction,
     best_sweeps = 0
     betas_sorted = np.empty_like(betas)
     log_omegas = np.zeros(n_sweeps)
+    traj = np.zeros((n_sweeps, n_replicas), dtype=energies.dtype) if record_trajectory else np.empty((0, 0), dtype=energies.dtype)
 
     # For each run ...
     for s in range(n_sweeps):
@@ -230,10 +237,13 @@ def simulation_sequential(update_spin: UpdateSpinFunction,
         # Calculate the weights for the partition function
         if get_part_fun:
             log_omegas[s] = get_log_omega(betas, beta_idx, energies)
+        if record_trajectory:
+            for k in range(n_replicas):
+                traj[s, k] = energies[k]
 
     # Return states and energies
-    return ((states, energies, beta_idx, log_omegas), (best_state, best_energy,
-                                                       best_sweeps, s + 1))
+    return ((states, energies, beta_idx, log_omegas, traj),
+            (best_state, best_energy, best_sweeps, s + 1))
 
 
 @numba.njit(fastmath=True, nogil=True, parallel=False)
